@@ -19,7 +19,7 @@ export default function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
-
+  
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -36,9 +36,9 @@ export default function Modal({
       />
 
       {/* Panel */}
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-xl">
-        <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
-          <h2 id="modal-title" className="text-lg font-semibold text-gray-900">
+      <div className="relative w-full max-w-lg rounded-md bg-white shadow-xl">
+        <div className="flex items-center justify-between gap-4  px-6 py-4">
+          <h2 id="modal-title" className="text-md text-gray-600">
             {title}
           </h2>
           <button
@@ -47,22 +47,14 @@ export default function Modal({
             className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300"
             aria-label="Close"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-            </svg>
+            ×
           </button>
         </div>
 
         <div className="px-6 py-4 text-gray-700">{children}</div>
 
         {(footer ?? true) && (
-          <div className="flex justify-end gap-3 border-t px-6 py-4">
+          <div className="flex justify-end gap-3 px-6 py-4">
             {footer ? (
               footer
             ) : (
