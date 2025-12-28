@@ -1,15 +1,26 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { Board, Card, Comment, DragOverCard, DragOverList, DragPayload } from "./types";
-import CommentsModal from "./components/CommentsModal";
-import BoardColumn from "./components/BoardColumn";
-import AddListComposer from "./components/AddListComposer";
+import type {
+  Board,
+  Card,
+  Comment,
+  DragOverCard,
+  DragOverList,
+  DragPayload,
+} from "./types";
+import CommentsModal from "../components/CommentsModal";
+import BoardColumn from "../components/BoardColumn";
+import AddListComposer from "../components/AddListComposer";
 import { safeParseDragPayload } from "./types";
 
 export default function Home() {
   const [boards, setBoards] = useState<Board[]>([
-    { id: 1, title: "Todo", cards: [{ id: 1, title: "Review Drag & Drop", comments: [] }] },
+    {
+      id: 1,
+      title: "Todo",
+      cards: [{ id: 1, title: "Review Drag & Drop", comments: [] }],
+    },
   ]);
 
   // Add board UI
@@ -17,7 +28,9 @@ export default function Home() {
   const [newBoardTitle, setNewBoardTitle] = useState<string>("");
 
   // Add card UI (per-board)
-  const [addCardOpenBoardId, setAddCardOpenBoardId] = useState<number | null>(null);
+  const [addCardOpenBoardId, setAddCardOpenBoardId] = useState<number | null>(
+    null
+  );
   const [newCardTitle, setNewCardTitle] = useState<string>("");
 
   // Comments modal state
@@ -29,7 +42,9 @@ export default function Home() {
   const [newCommentText, setNewCommentText] = useState<string>("");
 
   // List actions menu state
-  const [openListMenuBoardId, setOpenListMenuBoardId] = useState<number | null>(null);
+  const [openListMenuBoardId, setOpenListMenuBoardId] = useState<number | null>(
+    null
+  );
   const menuElRef = useRef<HTMLDivElement | null>(null);
 
   // Drag & Drop state
@@ -73,7 +88,9 @@ export default function Home() {
     const newCard: Card = { id: Date.now(), title, comments: [] };
 
     setBoards((prev) =>
-      prev.map((b) => (b.id === boardId ? { ...b, cards: [...b.cards, newCard] } : b))
+      prev.map((b) =>
+        b.id === boardId ? { ...b, cards: [...b.cards, newCard] } : b
+      )
     );
 
     setNewCardTitle("");
@@ -104,7 +121,9 @@ export default function Home() {
         return {
           ...b,
           cards: b.cards.map((c) =>
-            c.id === activeCardId ? { ...c, comments: [...c.comments, comment] } : c
+            c.id === activeCardId
+              ? { ...c, comments: [...c.comments, comment] }
+              : c
           ),
         };
       })
@@ -125,7 +144,9 @@ export default function Home() {
   };
 
   const handleDeleteAllCards = (boardId: number): void => {
-    setBoards((prev) => prev.map((b) => (b.id === boardId ? { ...b, cards: [] } : b)));
+    setBoards((prev) =>
+      prev.map((b) => (b.id === boardId ? { ...b, cards: [] } : b))
+    );
     setOpenListMenuBoardId(null);
 
     if (activeBoardId === boardId) {
@@ -138,7 +159,11 @@ export default function Home() {
   // ---------------------------
   // Reorder helpers
   // ---------------------------
-  const reorderBoards = (sourceBoardId: number, targetBoardId: number, insertAfter: boolean): void => {
+  const reorderBoards = (
+    sourceBoardId: number,
+    targetBoardId: number,
+    insertAfter: boolean
+  ): void => {
     setBoards((prev) => {
       const fromIndex = prev.findIndex((b) => b.id === sourceBoardId);
       const toIndexBase = prev.findIndex((b) => b.id === targetBoardId);
@@ -168,16 +193,22 @@ export default function Home() {
       const targetBoardIndex = prev.findIndex((b) => b.id === targetBoardId);
       if (sourceBoardIndex < 0 || targetBoardIndex < 0) return prev;
 
-      const fromCardIndex = prev[sourceBoardIndex].cards.findIndex((c) => c.id === cardId);
+      const fromCardIndex = prev[sourceBoardIndex].cards.findIndex(
+        (c) => c.id === cardId
+      );
       if (fromCardIndex < 0) return prev;
 
       const next: Board[] = prev.map((b) => ({ ...b, cards: [...b.cards] }));
       const [movedCard] = next[sourceBoardIndex].cards.splice(fromCardIndex, 1);
 
       let insertIndex = targetIndex;
-      if (sourceBoardId === targetBoardId && fromCardIndex < insertIndex) insertIndex -= 1;
+      if (sourceBoardId === targetBoardId && fromCardIndex < insertIndex)
+        insertIndex -= 1;
 
-      insertIndex = Math.max(0, Math.min(insertIndex, next[targetBoardIndex].cards.length));
+      insertIndex = Math.max(
+        0,
+        Math.min(insertIndex, next[targetBoardIndex].cards.length)
+      );
       next[targetBoardIndex].cards.splice(insertIndex, 0, movedCard);
 
       if (activeCardId === cardId && sourceBoardId !== targetBoardId) {
@@ -191,7 +222,10 @@ export default function Home() {
   // ---------------------------
   // DnD: start/end
   // ---------------------------
-  const handleDragStartList = (e: React.DragEvent<HTMLSpanElement>, boardId: number): void => {
+  const handleDragStartList = (
+    e: React.DragEvent<HTMLSpanElement>,
+    boardId: number
+  ): void => {
     const payload: DragPayload = { type: "list", boardId };
     setDragging(payload);
     e.dataTransfer.setData("text/plain", JSON.stringify(payload));
@@ -219,7 +253,10 @@ export default function Home() {
   // ---------------------------
   // DnD: list container
   // ---------------------------
-  const handleDragOverListContainer = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+  const handleDragOverListContainer = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number
+  ): void => {
     if (!dragging) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -227,18 +264,25 @@ export default function Home() {
     if (dragging.type === "list") {
       const rect = e.currentTarget.getBoundingClientRect();
       const isRight = e.clientX > rect.left + rect.width / 2;
-      setDragOverList({ boardId: targetBoardId, side: isRight ? "right" : "left" });
+      setDragOverList({
+        boardId: targetBoardId,
+        side: isRight ? "right" : "left",
+      });
       setDragOverCard(null);
     } else {
       setDragOverList({ boardId: targetBoardId, side: "left" });
     }
   };
 
-  const handleDropOnListContainer = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+  const handleDropOnListContainer = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number
+  ): void => {
     e.preventDefault();
 
     const raw =
-      e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
+      e.dataTransfer.getData("application/json") ||
+      e.dataTransfer.getData("text/plain");
 
     const payload = safeParseDragPayload(raw) ?? dragging;
     if (!payload) return;
@@ -258,10 +302,15 @@ export default function Home() {
     clearDragUi();
   };
 
-  const handleDragLeaveListContainer = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+  const handleDragLeaveListContainer = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number
+  ): void => {
     const next = e.relatedTarget as Node | null;
     if (!next || !e.currentTarget.contains(next)) {
-      setDragOverList((prev) => (prev?.boardId === targetBoardId ? null : prev));
+      setDragOverList((prev) =>
+        prev?.boardId === targetBoardId ? null : prev
+      );
     }
   };
 
@@ -300,7 +349,8 @@ export default function Home() {
     e.stopPropagation();
 
     const raw =
-      e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
+      e.dataTransfer.getData("application/json") ||
+      e.dataTransfer.getData("text/plain");
 
     const payload = safeParseDragPayload(raw) ?? dragging;
     if (!payload || payload.type !== "card") return;
@@ -314,12 +364,20 @@ export default function Home() {
     const insertAfter = dragOverCard?.position === "below";
     const insertIndex = targetIdx + (insertAfter ? 1 : 0);
 
-    moveCardToIndex(payload.boardId, payload.cardId, targetBoardId, insertIndex);
+    moveCardToIndex(
+      payload.boardId,
+      payload.cardId,
+      targetBoardId,
+      insertIndex
+    );
     clearDragUi();
   };
 
   // End zone
-  const handleDragOverListEndZone = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+  const handleDragOverListEndZone = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number
+  ): void => {
     if (!dragging || dragging.type !== "card") return;
     e.preventDefault();
     e.stopPropagation();
@@ -328,12 +386,16 @@ export default function Home() {
     setDragOverList({ boardId: targetBoardId, side: "left" });
   };
 
-  const handleDropOnListEndZone = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+  const handleDropOnListEndZone = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number
+  ): void => {
     e.preventDefault();
     e.stopPropagation();
 
     const raw =
-      e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
+      e.dataTransfer.getData("application/json") ||
+      e.dataTransfer.getData("text/plain");
 
     const payload = safeParseDragPayload(raw) ?? dragging;
     if (!payload || payload.type !== "card") return;
@@ -381,7 +443,11 @@ export default function Home() {
         newCommentText={newCommentText}
         onChangeNewCommentText={setNewCommentText}
         onAddComment={handleAddComment}
-        canSubmit={!!newCommentText.trim() && activeBoardId != null && activeCardId != null}
+        canSubmit={
+          !!newCommentText.trim() &&
+          activeBoardId != null &&
+          activeCardId != null
+        }
         formatTimestamp={formatTimestamp}
       />
 
@@ -411,7 +477,9 @@ export default function Home() {
                   onOpenComments={handleOpenComments}
                   isMenuOpen={openListMenuBoardId === board.id}
                   onToggleMenu={() =>
-                    setOpenListMenuBoardId((prev) => (prev === board.id ? null : board.id))
+                    setOpenListMenuBoardId((prev) =>
+                      prev === board.id ? null : board.id
+                    )
                   }
                   onDeleteList={() => handleDeleteList(board.id)}
                   onDeleteAllCards={() => handleDeleteAllCards(board.id)}
