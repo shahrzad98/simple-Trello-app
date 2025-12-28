@@ -1,5 +1,18 @@
-import React, { useEffect } from "react";
+import React, { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+
+type ModalProps = {
+  open: boolean;
+  onClose?: () => void;
+  title?: ReactNode;
+  children: ReactNode;
+  /**
+   * - undefined: show default footer
+   * - null/false: hide footer entirely
+   * - ReactNode: render custom footer
+   */
+  footer?: ReactNode | null | false;
+};
 
 export default function Modal({
   open,
@@ -7,19 +20,23 @@ export default function Modal({
   title = "Modal title",
   children,
   footer,
-}) {
+}: ModalProps) {
   // Close on ESC
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (e) => {
+
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose?.();
     };
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
   if (!open) return null;
-  
+
+  const showFooter = footer !== null && footer !== false;
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -37,7 +54,7 @@ export default function Modal({
 
       {/* Panel */}
       <div className="relative w-full max-w-lg rounded-md bg-white shadow-xl">
-        <div className="flex items-center justify-between gap-4  px-6 py-4">
+        <div className="flex items-center justify-between gap-4 px-6 py-4">
           <h2 id="modal-title" className="text-md text-gray-600">
             {title}
           </h2>
@@ -53,9 +70,9 @@ export default function Modal({
 
         <div className="px-6 py-4 text-gray-700">{children}</div>
 
-        {(footer ?? true) && (
+        {showFooter && (
           <div className="flex justify-end gap-3 px-6 py-4">
-            {footer ? (
+            {footer !== undefined ? (
               footer
             ) : (
               <>

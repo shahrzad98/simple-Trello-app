@@ -1,93 +1,97 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import Modal from "./components/Modal";
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { Board, Card, Comment, DragOverCard, DragOverList, DragPayload } from "./types";
+import CommentsModal from "./components/CommentsModal";
+import BoardColumn from "./components/BoardColumn";
+import AddListComposer from "./components/AddListComposer";
+import { safeParseDragPayload } from "./types";
 
 export default function Home() {
-  // Boards -> Cards -> Comments
-  const [boards, setBoards] = useState([
-    {
-      id: 1,
-      title: "Todo",
-      cards: [{ id: 1, title: "Review Drag & Drop", comments: [] }],
-    },
+  const [boards, setBoards] = useState<Board[]>([
+    { id: 1, title: "Todo", cards: [{ id: 1, title: "Review Drag & Drop", comments: [] }] },
   ]);
 
   // Add board UI
-  const [addBoardOpen, setAddBoardOpen] = useState(false);
-  const [newBoardTitle, setNewBoardTitle] = useState("");
+  const [addBoardOpen, setAddBoardOpen] = useState<boolean>(false);
+  const [newBoardTitle, setNewBoardTitle] = useState<string>("");
 
   // Add card UI (per-board)
-  const [addCardOpenBoardId, setAddCardOpenBoardId] = useState(null);
-  const [newCardTitle, setNewCardTitle] = useState("");
+  const [addCardOpenBoardId, setAddCardOpenBoardId] = useState<number | null>(null);
+  const [newCardTitle, setNewCardTitle] = useState<string>("");
 
   // Comments modal state
-  const [openComments, setOpenComments] = useState(false);
-  const [activeBoardId, setActiveBoardId] = useState(null);
-  const [activeCardId, setActiveCardId] = useState(null);
+  const [openComments, setOpenComments] = useState<boolean>(false);
+  const [activeBoardId, setActiveBoardId] = useState<number | null>(null);
+  const [activeCardId, setActiveCardId] = useState<number | null>(null);
 
   // New comment input
-  const [newCommentText, setNewCommentText] = useState("");
+  const [newCommentText, setNewCommentText] = useState<string>("");
 
   // List actions menu state
-  const [openListMenuBoardId, setOpenListMenuBoardId] = useState(null);
-  const menuRef = useRef(null);
+  const [openListMenuBoardId, setOpenListMenuBoardId] = useState<number | null>(null);
+  const menuElRef = useRef<HTMLDivElement | null>(null);
 
-  const activeBoard = useMemo(
+  // Drag & Drop state
+  const [dragging, setDragging] = useState<DragPayload | null>(null);
+  const [dragOverList, setDragOverList] = useState<DragOverList>(null);
+  const [dragOverCard, setDragOverCard] = useState<DragOverCard>(null);
+
+  const activeBoard = useMemo<Board | null>(
     () => boards.find((b) => b.id === activeBoardId) ?? null,
     [boards, activeBoardId]
   );
 
-  const activeCard = useMemo(() => {
+  const activeCard = useMemo<Card | null>(() => {
     if (!activeBoard) return null;
     return activeBoard.cards.find((c) => c.id === activeCardId) ?? null;
   }, [activeBoard, activeCardId]);
 
-  const formatTimestamp = (ts) => new Date(ts).toLocaleString();
+  const formatTimestamp = (ts: number): string => new Date(ts).toLocaleString();
 
-  const handleCreateBoard = () => {
+  const clearDragUi = (): void => {
+    setDragOverList(null);
+    setDragOverCard(null);
+  };
+
+  // ---------------------------
+  // CRUD
+  // ---------------------------
+  const handleCreateBoard = (): void => {
     const title = newBoardTitle.trim();
     if (!title) return;
 
-    setBoards((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        title,
-        cards: [], // new board starts with NO cards
-      },
-    ]);
-
+    setBoards((prev) => [...prev, { id: Date.now(), title, cards: [] }]);
     setNewBoardTitle("");
     setAddBoardOpen(false);
   };
 
-  const handleCreateCard = (boardId) => {
+  const handleCreateCard = (boardId: number): void => {
     const title = newCardTitle.trim();
     if (!title) return;
 
-    const newCard = { id: Date.now(), title, comments: [] };
+    const newCard: Card = { id: Date.now(), title, comments: [] };
 
     setBoards((prev) =>
-      prev.map((b) =>
-        b.id === boardId ? { ...b, cards: [...b.cards, newCard] } : b
-      )
+      prev.map((b) => (b.id === boardId ? { ...b, cards: [...b.cards, newCard] } : b))
     );
 
     setNewCardTitle("");
     setAddCardOpenBoardId(null);
   };
 
-  const handleOpenComments = (boardId, cardId) => {
+  const handleOpenComments = (boardId: number, cardId: number): void => {
     setActiveBoardId(boardId);
     setActiveCardId(cardId);
     setOpenComments(true);
     setNewCommentText("");
   };
 
-  const handleAddComment = () => {
+  const handleAddComment = (): void => {
     const text = newCommentText.trim();
-    if (!text || !activeBoardId || !activeCardId) return;
+    if (!text || activeBoardId == null || activeCardId == null) return;
 
-    const comment = {
+    const comment: Comment = {
       id: Date.now(),
       author: "You",
       createdAt: Date.now(),
@@ -97,13 +101,10 @@ export default function Home() {
     setBoards((prev) =>
       prev.map((b) => {
         if (b.id !== activeBoardId) return b;
-
         return {
           ...b,
           cards: b.cards.map((c) =>
-            c.id === activeCardId
-              ? { ...c, comments: [...c.comments, comment] }
-              : c
+            c.id === activeCardId ? { ...c, comments: [...c.comments, comment] } : c
           ),
         };
       })
@@ -112,12 +113,10 @@ export default function Home() {
     setNewCommentText("");
   };
 
-  // List actions handlers
-  const handleDeleteList = (boardId) => {
+  const handleDeleteList = (boardId: number): void => {
     setBoards((prev) => prev.filter((b) => b.id !== boardId));
     setOpenListMenuBoardId(null);
 
-    // If the deleted board was active in comments, close the modal.
     if (activeBoardId === boardId) {
       setOpenComments(false);
       setActiveBoardId(null);
@@ -125,13 +124,10 @@ export default function Home() {
     }
   };
 
-  const handleDeleteAllCards = (boardId) => {
-    setBoards((prev) =>
-      prev.map((b) => (b.id === boardId ? { ...b, cards: [] } : b))
-    );
+  const handleDeleteAllCards = (boardId: number): void => {
+    setBoards((prev) => prev.map((b) => (b.id === boardId ? { ...b, cards: [] } : b)));
     setOpenListMenuBoardId(null);
 
-    // If currently viewing comments from this board, close since the card may be gone.
     if (activeBoardId === boardId) {
       setOpenComments(false);
       setActiveBoardId(null);
@@ -139,18 +135,229 @@ export default function Home() {
     }
   };
 
-  // Close menu on outside click / Escape
-  useEffect(() => {
-    if (!openListMenuBoardId) return;
+  // ---------------------------
+  // Reorder helpers
+  // ---------------------------
+  const reorderBoards = (sourceBoardId: number, targetBoardId: number, insertAfter: boolean): void => {
+    setBoards((prev) => {
+      const fromIndex = prev.findIndex((b) => b.id === sourceBoardId);
+      const toIndexBase = prev.findIndex((b) => b.id === targetBoardId);
+      if (fromIndex < 0 || toIndexBase < 0) return prev;
+      if (fromIndex === toIndexBase) return prev;
 
-    const onMouseDown = (e) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target)) {
-        setOpenListMenuBoardId(null);
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+
+      let insertIndex = toIndexBase + (insertAfter ? 1 : 0);
+      if (fromIndex < insertIndex) insertIndex -= 1;
+
+      insertIndex = Math.max(0, Math.min(insertIndex, next.length));
+      next.splice(insertIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const moveCardToIndex = (
+    sourceBoardId: number,
+    cardId: number,
+    targetBoardId: number,
+    targetIndex: number
+  ): void => {
+    setBoards((prev) => {
+      const sourceBoardIndex = prev.findIndex((b) => b.id === sourceBoardId);
+      const targetBoardIndex = prev.findIndex((b) => b.id === targetBoardId);
+      if (sourceBoardIndex < 0 || targetBoardIndex < 0) return prev;
+
+      const fromCardIndex = prev[sourceBoardIndex].cards.findIndex((c) => c.id === cardId);
+      if (fromCardIndex < 0) return prev;
+
+      const next: Board[] = prev.map((b) => ({ ...b, cards: [...b.cards] }));
+      const [movedCard] = next[sourceBoardIndex].cards.splice(fromCardIndex, 1);
+
+      let insertIndex = targetIndex;
+      if (sourceBoardId === targetBoardId && fromCardIndex < insertIndex) insertIndex -= 1;
+
+      insertIndex = Math.max(0, Math.min(insertIndex, next[targetBoardIndex].cards.length));
+      next[targetBoardIndex].cards.splice(insertIndex, 0, movedCard);
+
+      if (activeCardId === cardId && sourceBoardId !== targetBoardId) {
+        setActiveBoardId(targetBoardId);
       }
+
+      return next;
+    });
+  };
+
+  // ---------------------------
+  // DnD: start/end
+  // ---------------------------
+  const handleDragStartList = (e: React.DragEvent<HTMLSpanElement>, boardId: number): void => {
+    const payload: DragPayload = { type: "list", boardId };
+    setDragging(payload);
+    e.dataTransfer.setData("text/plain", JSON.stringify(payload));
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragStartCard = (
+    e: React.DragEvent<HTMLDivElement>,
+    boardId: number,
+    cardId: number
+  ): void => {
+    const payload: DragPayload = { type: "card", boardId, cardId };
+    setDragging(payload);
+    e.dataTransfer.setData("text/plain", JSON.stringify(payload));
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEndAny = (): void => {
+    setDragging(null);
+    clearDragUi();
+  };
+
+  // ---------------------------
+  // DnD: list container
+  // ---------------------------
+  const handleDragOverListContainer = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+    if (!dragging) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    if (dragging.type === "list") {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const isRight = e.clientX > rect.left + rect.width / 2;
+      setDragOverList({ boardId: targetBoardId, side: isRight ? "right" : "left" });
+      setDragOverCard(null);
+    } else {
+      setDragOverList({ boardId: targetBoardId, side: "left" });
+    }
+  };
+
+  const handleDropOnListContainer = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+    e.preventDefault();
+
+    const raw =
+      e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
+
+    const payload = safeParseDragPayload(raw) ?? dragging;
+    if (!payload) return;
+
+    if (payload.type === "list") {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const insertAfter = e.clientX > rect.left + rect.width / 2;
+      reorderBoards(payload.boardId, targetBoardId, insertAfter);
+    }
+
+    if (payload.type === "card") {
+      const targetBoard = boards.find((b) => b.id === targetBoardId);
+      const endIndex = targetBoard ? targetBoard.cards.length : 0;
+      moveCardToIndex(payload.boardId, payload.cardId, targetBoardId, endIndex);
+    }
+
+    clearDragUi();
+  };
+
+  const handleDragLeaveListContainer = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+    const next = e.relatedTarget as Node | null;
+    if (!next || !e.currentTarget.contains(next)) {
+      setDragOverList((prev) => (prev?.boardId === targetBoardId ? null : prev));
+    }
+  };
+
+  // ---------------------------
+  // DnD: card targets
+  // ---------------------------
+  const handleDragOverCardTarget = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number,
+    targetCardId: number
+  ): void => {
+    if (!dragging || dragging.type !== "card") return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isBelow = e.clientY > rect.top + rect.height / 2;
+
+    setDragOverCard({
+      boardId: targetBoardId,
+      cardId: targetCardId,
+      position: isBelow ? "below" : "above",
+    });
+
+    if (dragOverList) setDragOverList(null);
+  };
+
+  const handleDropOnCardTarget = (
+    e: React.DragEvent<HTMLDivElement>,
+    targetBoardId: number,
+    targetCardId: number
+  ): void => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const raw =
+      e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
+
+    const payload = safeParseDragPayload(raw) ?? dragging;
+    if (!payload || payload.type !== "card") return;
+
+    const targetBoard = boards.find((b) => b.id === targetBoardId);
+    if (!targetBoard) return;
+
+    const targetIdx = targetBoard.cards.findIndex((c) => c.id === targetCardId);
+    if (targetIdx < 0) return;
+
+    const insertAfter = dragOverCard?.position === "below";
+    const insertIndex = targetIdx + (insertAfter ? 1 : 0);
+
+    moveCardToIndex(payload.boardId, payload.cardId, targetBoardId, insertIndex);
+    clearDragUi();
+  };
+
+  // End zone
+  const handleDragOverListEndZone = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+    if (!dragging || dragging.type !== "card") return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCard(null);
+    setDragOverList({ boardId: targetBoardId, side: "left" });
+  };
+
+  const handleDropOnListEndZone = (e: React.DragEvent<HTMLDivElement>, targetBoardId: number): void => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const raw =
+      e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain");
+
+    const payload = safeParseDragPayload(raw) ?? dragging;
+    if (!payload || payload.type !== "card") return;
+
+    const targetBoard = boards.find((b) => b.id === targetBoardId);
+    const endIndex = targetBoard ? targetBoard.cards.length : 0;
+
+    moveCardToIndex(payload.boardId, payload.cardId, targetBoardId, endIndex);
+    clearDragUi();
+  };
+
+  // ---------------------------
+  // Menu outside-click / Escape
+  // ---------------------------
+  useEffect(() => {
+    if (openListMenuBoardId == null) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      const el = menuElRef.current;
+      if (!el) return;
+      if (!el.contains(e.target as Node)) setOpenListMenuBoardId(null);
     };
 
-    const onKeyDown = (e) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpenListMenuBoardId(null);
     };
 
@@ -166,216 +373,79 @@ export default function Home() {
 
   return (
     <>
-      <Modal
+      <CommentsModal
         open={openComments}
         onClose={() => setOpenComments(false)}
-        title={`Comments for "${activeCard?.title ?? ""}"`}
-        footer={
-          <button
-            type="button"
-            onClick={handleAddComment}
-            disabled={!newCommentText.trim() || !activeBoardId || !activeCardId}
-            className="w-max h-7 cursor-pointer px-4 text-sm bg-green-400 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add Comment
-          </button>
-        }
-      >
-        {!activeCard || activeCard.comments.length === 0 ? (
-          <p>No comments yet. Be the first to comment!</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {activeCard.comments.map((c) => (
-              <div
-                key={c.id}
-                className="bg-gray-50 border border-gray-200 rounded-md p-2"
-              >
-                <p className="text-xs text-gray-600 mb-1">
-                  {c.author} · {formatTimestamp(c.createdAt)}
-                </p>
-                <p className="text-sm whitespace-pre-wrap">{c.text}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <textarea
-          value={newCommentText}
-          onChange={(e) => setNewCommentText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleAddComment();
-            }
-          }}
-          className="placeholder:text-sm mb-2 w-full outline-0 mt-5 border border-gray-300 rounded-md p-1"
-          placeholder="Write a comment ... (Enter to send, Shift+Enter for new line)"
-        />
-      </Modal>
+        cardTitle={activeCard?.title ?? ""}
+        comments={activeCard?.comments ?? []}
+        newCommentText={newCommentText}
+        onChangeNewCommentText={setNewCommentText}
+        onAddComment={handleAddComment}
+        canSubmit={!!newCommentText.trim() && activeBoardId != null && activeCardId != null}
+        formatTimestamp={formatTimestamp}
+      />
 
       <div className="p-4 flex flex-col gap-4">
         <p className="text-white text-xl font-bold">Demo Board</p>
 
-        {/* Boards row */}
         <div className="flex gap-4 items-start overflow-x-auto">
           <div className="overflow-x-auto pb-24">
-            {/* Actual row */}
             <div className="flex gap-4 items-start min-w-max">
               {boards.map((board) => (
-                <div key={board.id} className="rounded-md bg-gray-200 p-2 w-67">
-                  <div className="flex justify-between items-center mb-2 relative">
-                    <p className="text-md font-semibold">{board.title}</p>
-
-                    {/* Trigger */}
-                    <p
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenListMenuBoardId((prev) =>
-                          prev === board.id ? null : board.id
-                        );
-                      }}
-                      className="text-2xl font-semibold relative bottom-1 cursor-pointer select-none"
-                    >
-                      ...
-                    </p>
-
-                    {/* Menu */}
-                    {openListMenuBoardId === board.id && (
-                      <div
-                        ref={menuRef}
-                        className="absolute right-0 top-8 z-50 w-52 bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="px-3 py-2 text-sm font-semibold border-b border-gray-200">
-                          List Actions
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteList(board.id)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Delete list
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteAllCards(board.id)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Delete all cards
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Cards */}
-                  {board.cards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="rounded-md mb-2 bg-white p-2 flex flex-col"
-                    >
-                      <p className="mb-1">{card.title}</p>
-                      <p
-                        onClick={() => handleOpenComments(board.id, card.id)}
-                        className="text-xs py-1 cursor-pointer text-gray-600 px-2 bg-gray-200 w-max rounded-md self-end"
-                      >
-                        Comments ({card.comments.length})
-                      </p>
-                    </div>
-                  ))}
-
-                  {/* Add / Create card UI (per-board) */}
-                  {addCardOpenBoardId === board.id ? (
-                    <>
-                      <textarea
-                        value={newCardTitle}
-                        onChange={(e) => setNewCardTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleCreateCard(board.id);
-                          }
-                        }}
-                        className="placeholder:text-sm mb-2 w-full outline-0 mt-5 shadow-2xl bg-white rounded-md p-1"
-                        placeholder="Enter a card title ... (Enter to create)"
-                      />
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleCreateCard(board.id)}
-                          className="w-max cursor-pointer p-2 bg-green-600 text-white rounded-md"
-                        >
-                          Create card
-                        </button>
-                        <p
-                          onClick={() => {
-                            setAddCardOpenBoardId(null);
-                            setNewCardTitle("");
-                          }}
-                          className="text-2xl cursor-pointer text-gray-400 font-bold"
-                        >
-                          ×
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <p
-                      onClick={() => {
-                        setAddCardOpenBoardId(board.id);
-                        setNewCardTitle("");
-                      }}
-                      className="mt-5 cursor-pointer text-gray-500 px-2 py-1 hover:bg-gray-300 -m-2 rounded-b-md overflow-hidden transition duration-200 ease-in-out"
-                    >
-                      + Add another card
-                    </p>
-                  )}
-                </div>
+                <BoardColumn
+                  key={board.id}
+                  board={board}
+                  dragging={dragging}
+                  dragOverList={dragOverList}
+                  dragOverCard={dragOverCard}
+                  onDragStartList={handleDragStartList}
+                  onDragEndAny={handleDragEndAny}
+                  onDragOverListContainer={handleDragOverListContainer}
+                  onDropOnListContainer={handleDropOnListContainer}
+                  onDragLeaveListContainer={handleDragLeaveListContainer}
+                  onDragStartCard={handleDragStartCard}
+                  onDragOverCardTarget={handleDragOverCardTarget}
+                  onDropOnCardTarget={handleDropOnCardTarget}
+                  onDragOverListEndZone={handleDragOverListEndZone}
+                  onDropOnListEndZone={handleDropOnListEndZone}
+                  onOpenComments={handleOpenComments}
+                  isMenuOpen={openListMenuBoardId === board.id}
+                  onToggleMenu={() =>
+                    setOpenListMenuBoardId((prev) => (prev === board.id ? null : board.id))
+                  }
+                  onDeleteList={() => handleDeleteList(board.id)}
+                  onDeleteAllCards={() => handleDeleteAllCards(board.id)}
+                  setMenuEl={(el) => {
+                    menuElRef.current = el;
+                  }}
+                  isAddCardOpen={addCardOpenBoardId === board.id}
+                  newCardTitle={newCardTitle}
+                  onOpenAddCard={() => {
+                    setAddCardOpenBoardId(board.id);
+                    setNewCardTitle("");
+                  }}
+                  onCancelAddCard={() => {
+                    setAddCardOpenBoardId(null);
+                    setNewCardTitle("");
+                  }}
+                  onChangeNewCardTitle={setNewCardTitle}
+                  onCreateCard={() => handleCreateCard(board.id)}
+                />
               ))}
             </div>
           </div>
-          {/* + Add new board */}
-          {addBoardOpen ? (
-            <div className="rounded-md bg-gray-200 p-2 w-67">
-              <input
-                value={newBoardTitle}
-                onChange={(e) => setNewBoardTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleCreateBoard();
-                  }
-                }}
-                className="placeholder:text-sm mb-2 w-full outline-0 shadow-2xl bg-white rounded-md p-1"
-                placeholder="Enter a list title ... (Enter to create)"
-              />
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleCreateBoard}
-                  className="w-max cursor-pointer px-2 h-7 text-sm font-bold bg-green-600 text-white rounded-md"
-                >
-                  Add list
-                </button>
-                <p
-                  onClick={() => {
-                    setAddBoardOpen(false);
-                    setNewBoardTitle("");
-                  }}
-                  className="text-2xl cursor-pointer text-gray-400 font-bold"
-                >
-                  ×
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p
-              onClick={() => setAddBoardOpen(true)}
-              className="cursor-pointer text-white px-2 w-67 py-1 hover:bg-blu bg-sky-800 rounded-sm transition duration-200 ease-in-out"
-            >
-              + Add another list
-            </p>
-          )}
+
+          <AddListComposer
+            isOpen={addBoardOpen}
+            value={newBoardTitle}
+            onOpen={() => setAddBoardOpen(true)}
+            onCancel={() => {
+              setAddBoardOpen(false);
+              setNewBoardTitle("");
+            }}
+            onChange={setNewBoardTitle}
+            onCreate={handleCreateBoard}
+          />
         </div>
       </div>
     </>
